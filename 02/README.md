@@ -1,76 +1,72 @@
-# CS460 - Assignment 2: Dynamic Cube Art Visualization
+# CS460 - Assignment 2: Pedestrian 3D Cube City & Randomized Streets (XTK)
 
-An interactive 3D WebGL Cube Art Visualization built with **The X Toolkit (XTK)** framework, featuring mathematical generative formations, dynamic color harmonics, individual cube kinematics, camera auto-orbiting, real-time shockwave ripples, and an ambient Web Audio synthesizer.
+An interactive, procedural 3D WebGL city simulation built with **The X Toolkit (XTK)** framework, created directly from the specifications and layout sketched in [`assignment 2.pdf`](file:///C:/Users/denni/OneDrive%20-%20University%20of%20Massachusetts%20Boston/UMass%20Boston/Computer%20Science/cs460student/02/assignment%202.pdf).
+
+---
+
+## 🏙️ What's New in this Build
+
+### 1. Zero-Leak Cube Pooling (Orphaned Beacons Fixed)
+- All buildings, setbacks, rooftop antennas, glowing spire beacons, street elements, and traffic cars are managed through a unified **pre-allocated cube pool** (~480+ cubes).
+- When the city is re-randomized, all pool members are either reconfigured to their new coordinates or hidden with `visible = false`. **No beacons or antennas ever linger in the sky.**
+
+### 2. Randomized Street Network
+- The street grid dynamically reconfigures on every randomization:
+  - **Randomized Intersections**: 2 to 4 cross-streets at varying depths with T-junctions (branching left, branching right like in the PDF sketch, or 4-way crossways).
+  - **Painted Crosswalks**: Realistic white zebra-stripe pedestrian crossings flanking every intersection.
+  - **Modular Sidewalk Curbs**: Flanking the avenue with openings that allow you to walk into any cross-street.
+  - **Dashed Lane Markings & Streetlights**: Center stripes down the avenue and side streets with glowing warm streetlight poles along sidewalks.
+
+### 3. Colossal Urban Scale & Abundance (340+ Buildings)
+- Spanning nearly **1,000 units wide** ($X: -450$ to $+450$) and over **1,100 units deep** ($Z: +400$ to $-740$).
+- **Signature Foreground Buildings**: Always preserves the 6 authentic buildings from `assignment 2.pdf`:
+  - *Left Foreground*: Purple compact cube
+  - *Left Midground*: Leaf Green rectangular block
+  - *Left Horizon*: Canary Yellow soaring skyscraper
+  - *Right Foreground*: Ruby Red cube
+  - *Right Midground*: Sky Blue skyscraper
+  - *Right Crossway*: Elongated Amber Orange horizontal building past the intersection
+- **Metropolitan Skyline**:
+  - Megatall skyscrapers soaring up to 340+ units high with architectural setbacks and glowing spires.
+  - Commercial and residential mid-rises (65–160 units).
+  - Low-rise shops, lofts, and urban pavilions (22–60 units).
+  - Vibrant multi-colored building palette (Yellow, Blue, Green, Purple, Orange, Red, Cyan, Coral, Mint, Cobalt, Gold).
+
+### 4. True Human-Scale Pedestrian Camera
+- **Street-Level Eye Height**: Set to `7.8 units` above the street. Skyscrapers tower over 30× your height, giving a true pedestrian street perspective.
+- **Pedestrian Physics & Kinematics**:
+  - Smooth ground acceleration and friction deceleration (realistic human momentum rather than rigid teleportation).
+  - **Bipedal Gait Head-Bobbing**: Subtle vertical head-bob ($0.32$ units) and lateral shoulder sway ($0.14$ units) synchronized to your step speed.
+  - **Pedestrian Jump**: Press <kbd>Space</kbd> or click "Jump" to leap with gravity.
+  - **Building Collision Detection**: Prevents walking through skyscraper walls, keeping you naturally along streets, sidewalks, and crossways.
+  - **Look Controls**: Click and drag on the screen to look around freely (yaw & pitch), allowing you to tilt your head all the way up to gaze at skyscraper rooftops against the sky.
+
+---
+
+## ⌨️ Controls Summary
+
+| Input | Action |
+|:---:|:---|
+| <kbd>W</kbd> | Walk forward down the road |
+| <kbd>S</kbd> | Walk backward |
+| <kbd>A</kbd> | Strafe left |
+| <kbd>D</kbd> | Strafe right |
+| <kbd>Shift</kbd> | Sprint (Jogging pace) |
+| <kbd>Space</kbd> | Jump |
+| <kbd>Mouse Drag</kbd> | Look around (tilt up at towers, look left/right) |
+| <kbd>Q</kbd> / <kbd>E</kbd> or <kbd>&larr;</kbd> <kbd>&rarr;</kbd> | Turn camera left / right |
+| <kbd>&uarr;</kbd> <kbd>&darr;</kbd> | Look up / down |
+| <kbd>G</kbd> | **Randomize City &amp; Street Grid** |
+| <kbd>R</kbd> | **Reset Position to Street Level** |
+| <kbd>V</kbd> | Toggle Pedestrian Walk / Aerial Drone camera |
+| <kbd>N</kbd> | Cycle Atmosphere (Day / Sunset / Cyberpunk Night) |
+| <kbd>T</kbd> | Toggle traffic animation |
+| <kbd>?</kbd> | Open Controls cheat sheet |
 
 ---
 
 ## 🚀 Files
 
-- **`index.html`** *(Primary Assignment)*: The complete XTK WebGL Cube Art Studio.
-- **`bonus.html`** *(Bonus / Comparison)*: Companion implementation using **Three.js** with hardware-accelerated instanced meshes and dynamic PBR lighting.
-
----
-
-## ✨ Features
-
-### 1. Mathematical Formations & Morphing
-Smooth fluid kinematic transitions interpolate the 256 cubes across 7 distinct 3D formations:
-1. **Hypercube Wave Matrix**: 3D sinusoidal ripple harmonics with radial distance and angular phase modulation.
-2. **Cosmic Vortex**: 3-armed logarithmic Fibonacci galaxy spiral with vertical gravitational drift.
-3. **DNA Double Helix**: Intertwined double-stranded helical staircase with periodic connecting base rungs.
-4. **Tesseract Shells**: Concentric 4D hypercube frames expanding and breathing along diagonal axes.
-5. **Toroidal Ring**: Cubes woven along the major and minor radii of a 3D torus ribbon.
-6. **Supernova Sphere**: Fibonacci golden ratio distribution on a spherical shell pulsing rhythmically.
-7. **Audio Spectrum Arena**: Radial stepped equalizer ring reacting dynamically to synthesized frequencies.
-
-### 2. Chromatic Harmonics & Color Themes
-- **Neon Cyberpunk**: Electric Cyan (`#00f3ff`) & Hot Magenta (`#ff007f`) with solar yellow highlights.
-- **Vaporwave Sunset**: Sunset Peach, Hot Pink, and deep twilight Violet.
-- **Quantum Aurora**: Dynamic HSL spectrum phase-shifted across 3D distance, height, and time.
-- **Molten Magma**: Volcanic obsidian core grading to crimson, flaming orange, and molten gold.
-- **Bioluminescent Abyss**: Phosphorescent aqua, electric azure, and deep oceanic navy.
-- **Matrix Emerald**: Digital terminal jade, cyber emerald, and fluorescent lime.
-- **Prismatic Rainbow**: Continuous 360° chromatic spatial rainbow.
-
-### 3. Kinematics & Transformations
-- Each cube maintains its own 3D rotation angles along $(X, Y, Z)$ and spins independently in local space.
-- The 4x4 transformation matrix (`cube.transform.matrix`) is calculated with rotation, scale, and world-space translation.
-- Interactive **Click-to-Shockwave**: Clicking anywhere on the canvas radiates an expanding radial wave through the grid.
-
-### 4. Generative Ambient Synthesizer (Web Audio API)
-- Built-in atmospheric sci-fi ambient chord generator (harmonic F minor 9th / C minor voicing) with gentle detune chorus and lowpass filter sweeps.
-- Real-time `AnalyserNode` extracts audio frequency energy to modulate cube heights, wave amplitudes, and color luminescence.
-- Click the audio icon in the top-right toolbar or press `A` to toggle sound.
-
-### 5. Controls & User Interface
-- **dat.GUI Controller** (`xtk_xdat.gui.js`): Control animation speed, wave frequency, amplitude, spin rates, camera orbit speed, and color themes.
-- **Glassmorphism HUD**: Live FPS counter, active cube count, current formation, and palette indicator.
-- **Mouse Navigation**:
-  - *Left Click + Drag*: Orbit / rotate the camera.
-  - *Scroll Wheel / Right Click + Drag*: Zoom in / out.
-  - *Middle Click + Drag*: Pan the scene.
-  - *Canvas Click*: Spawn a 3D shockwave ripple.
-
----
-
-## ⌨️ Keyboard Shortcuts
-
-| Key | Action |
-|:---:|:---|
-| <kbd>Space</kbd> | Pause / Resume animation |
-| <kbd>M</kbd> | Cycle next formation |
-| <kbd>C</kbd> | Cycle next color palette |
-| <kbd>A</kbd> | Toggle ambient audio synth |
-| <kbd>O</kbd> | Toggle camera auto-orbit |
-| <kbd>R</kbd> | Randomize parameters |
-| <kbd>F</kbd> | Toggle fullscreen |
-| <kbd>1</kbd> - <kbd>7</kbd> | Jump directly to formations 1 through 7 |
-| <kbd>?</kbd> / <kbd>Esc</kbd> | Open / Close keyboard shortcuts cheat sheet |
-
----
-
-## 🛠️ Frameworks & CDNs Used
-
-- **XTK (The X Toolkit)**: `https://get.goXTK.com/xtk_edge.js`
-- **XTK Dat.GUI**: `https://get.goXTK.com/xtk_xdat.gui.js`
-- **Three.js** (for `bonus.html`): `https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js`
+- **[`index.html`](file:///C:/Users/denni/OneDrive%20-%20University%20of%20Massachusetts%20Boston/UMass%20Boston/Computer%20Science/cs460student/02/index.html)**: Main XTK WebGL assignment submission.
+- **[`assignment 2.pdf`](file:///C:/Users/denni/OneDrive%20-%20University%20of%20Massachusetts%20Boston/UMass%20Boston/Computer%20Science/cs460student/02/assignment%202.pdf)**: Assignment specification and visual sketch.
+- **[`agent.html`](file:///C:/Users/denni/OneDrive%20-%20University%20of%20Massachusetts%20Boston/UMass%20Boston/Computer%20Science/cs460student/02/agent.html)**: Mathematical cube art visualization (bonus archive).

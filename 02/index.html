@@ -1,0 +1,1544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>CS460 - Assignment 2: Pedestrian 3D Cube City &amp; Randomized Streets</title>
+  <style>
+    :root {
+      --bg-sky-day: #787a82;
+      --bg-sky-sunset: #3c2642;
+      --bg-sky-night: #080a12;
+      --glass-bg: rgba(18, 22, 36, 0.82);
+      --glass-border: rgba(255, 255, 255, 0.16);
+      --accent-neon: #00f3ff;
+      --accent-yellow: #fcd34d;
+      --accent-magenta: #ff007f;
+      --accent-green: #10b981;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-sky-day);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: var(--text-main);
+      transition: background-color 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* WebGL Canvas Container */
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      cursor: crosshair;
+    }
+
+    /* Top Left Header Card */
+    .header-card {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 16px 22px;
+      box-shadow: 0 10px 36px rgba(0, 0, 0, 0.5);
+      max-width: 440px;
+      pointer-events: auto;
+    }
+
+    .badge-tag {
+      background: linear-gradient(135deg, #f59e0b, #ef4444);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+
+    .header-card h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      background: linear-gradient(90deg, #ffffff, var(--accent-neon));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 4px;
+    }
+
+    .header-card p {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 16px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 11px;
+    }
+
+    .stat-col {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .stat-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+    }
+
+    .stat-val {
+      font-family: monospace;
+      font-weight: 700;
+      color: var(--accent-neon);
+      font-size: 12px;
+    }
+
+    /* Top Right Floating Toolbar */
+    .top-toolbar {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 10;
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .tool-btn {
+      background: var(--glass-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 10px 15px;
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+      transition: all 0.25s ease;
+    }
+
+    .tool-btn:hover {
+      background: rgba(0, 243, 255, 0.2);
+      border-color: var(--accent-neon);
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 22px rgba(0, 243, 255, 0.4);
+    }
+
+    .tool-btn.primary {
+      background: linear-gradient(135deg, rgba(0, 243, 255, 0.3), rgba(255, 0, 127, 0.3));
+      border-color: var(--accent-neon);
+    }
+
+    .tool-btn.active {
+      background: linear-gradient(135deg, var(--accent-magenta), #7928ca);
+      border-color: #fff;
+      color: #fff;
+      box-shadow: 0 0 18px var(--accent-magenta);
+    }
+
+    /* PDF-Inspired WASD Direction Compass Widget (Bottom Right) */
+    .wasd-widget {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      z-index: 10;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 16px 20px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      pointer-events: auto;
+    }
+
+    .widget-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .wasd-cross {
+      display: grid;
+      grid-template-columns: 44px 44px 44px;
+      grid-template-rows: 44px 44px;
+      gap: 6px;
+      align-items: center;
+      justify-items: center;
+    }
+
+    .wasd-key {
+      width: 44px;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: monospace;
+      font-weight: 800;
+      font-size: 15px;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+      transition: all 0.12s ease;
+    }
+
+    .wasd-key span.arrow {
+      font-size: 10px;
+      color: var(--accent-neon);
+      margin-top: -2px;
+    }
+
+    .wasd-key:hover {
+      background: rgba(0, 243, 255, 0.22);
+      border-color: var(--accent-neon);
+      transform: translateY(-2px);
+    }
+
+    .wasd-key.active, .wasd-key:active {
+      background: linear-gradient(135deg, var(--accent-magenta), var(--accent-neon));
+      border-color: #fff;
+      box-shadow: 0 0 18px var(--accent-neon);
+      transform: scale(0.92);
+    }
+
+    #key-w { grid-column: 2; grid-row: 1; }
+    #key-a { grid-column: 1; grid-row: 2; }
+    #key-s { grid-column: 2; grid-row: 2; }
+    #key-d { grid-column: 3; grid-row: 2; }
+
+    .widget-hint {
+      font-size: 9.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-align: center;
+    }
+
+    /* Center Aim Reticle */
+    .reticle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 16px;
+      height: 16px;
+      pointer-events: none;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .reticle::before, .reticle::after {
+      content: '';
+      position: absolute;
+      background: rgba(255, 255, 255, 0.45);
+      border-radius: 1px;
+    }
+
+    .reticle::before { width: 14px; height: 1.5px; }
+    .reticle::after { width: 1.5px; height: 14px; }
+
+    /* Bottom Quick Action Bar */
+    .bottom-bar {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      z-index: 10;
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 30px;
+      padding: 6px 12px;
+      display: flex;
+      gap: 8px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+      pointer-events: auto;
+    }
+
+    .chip-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main);
+      padding: 7px 15px;
+      border-radius: 20px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .chip-btn:hover {
+      background: rgba(0, 243, 255, 0.18);
+      border-color: var(--accent-neon);
+      color: #fff;
+    }
+
+    .chip-btn.active {
+      background: linear-gradient(135deg, rgba(0, 243, 255, 0.35), rgba(255, 0, 127, 0.35));
+      border-color: var(--accent-neon);
+      color: #fff;
+    }
+
+    /* Modal Help Sheet */
+    .help-modal {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 40;
+      background: rgba(14, 18, 32, 0.96);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 26px 32px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.75);
+      max-width: 490px;
+      width: 90%;
+    }
+
+    .help-modal.open {
+      display: block;
+      animation: modalFade 0.25s ease-out;
+    }
+
+    @keyframes modalFade {
+      from { opacity: 0; transform: translate(-50%, -46%); }
+      to { opacity: 1; transform: translate(-50%, -50%); }
+    }
+
+    .help-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .help-header h3 {
+      font-size: 17px;
+      color: var(--accent-neon);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    .close-btn:hover { color: #fff; }
+
+    .help-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 14px;
+      font-size: 12px;
+    }
+
+    .help-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .key-tag {
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-weight: 700;
+      color: var(--accent-neon);
+      font-size: 11px;
+      min-width: 28px;
+      text-align: center;
+    }
+
+    @media (max-width: 768px) {
+      .header-card {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        max-width: none;
+        padding: 12px 16px;
+      }
+      .top-toolbar {
+        top: auto;
+        bottom: 140px;
+        right: 12px;
+        flex-direction: column;
+      }
+      .bottom-bar {
+        bottom: 12px;
+        left: 12px;
+        flex-wrap: wrap;
+      }
+      .wasd-widget {
+        bottom: 12px;
+        right: 12px;
+        padding: 10px 14px;
+      }
+      .wasd-cross {
+        grid-template-columns: 38px 38px 38px;
+        grid-template-rows: 38px 38px;
+      }
+      .wasd-key {
+        width: 38px;
+        height: 38px;
+        font-size: 13px;
+      }
+    }
+  </style>
+
+  <!-- Load XTK WebGL Framework -->
+  <script type="text/javascript" src="https://get.goXTK.com/xtk_edge.js"></script>
+</head>
+<body>
+
+  <!-- WebGL Render Canvas Mount Point -->
+  <div id="canvas-container"></div>
+
+  <!-- Center Aim Reticle -->
+  <div class="reticle"></div>
+
+  <!-- Top-Left Assignment Header -->
+  <div class="header-card">
+    <span class="badge-tag">CS460 Assignment 2</span>
+    <h1>XTK Random Cube Megalopolis</h1>
+    <p>Procedural city of 300+ cubes, randomized street network &amp; pedestrian physics</p>
+    <div class="stats-row">
+      <div class="stat-col">
+        <span class="stat-label">Position (X, Z)</span>
+        <span class="stat-val" id="stat-pos">0.0, 260.0</span>
+      </div>
+      <div class="stat-col">
+        <span class="stat-label">Eye Height</span>
+        <span class="stat-val" id="stat-eye">7.8 (Pedestrian)</span>
+      </div>
+      <div class="stat-col">
+        <span class="stat-label">Active Cubes</span>
+        <span class="stat-val" id="stat-cubes">320 Cubes</span>
+      </div>
+      <div class="stat-col">
+        <span class="stat-label">Atmosphere</span>
+        <span class="stat-val" id="stat-sky">Day (PDF Style)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top-Right Actions -->
+  <div class="top-toolbar">
+    <button class="tool-btn primary" id="btn-regen" title="Randomize City &amp; Street Grid [G]">
+      &#9860; Randomize City &amp; Streets
+    </button>
+    <button class="tool-btn" id="btn-reset" title="Reset Camera to Street Level [R]">
+      &#8634; Reset to Street
+    </button>
+    <button class="tool-btn" id="btn-view" title="Toggle Aerial Drone / Street View [V]">
+      &#9737; Toggle View
+    </button>
+    <button class="tool-btn" id="btn-sky" title="Cycle Day / Sunset / Night [N]">
+      &#9728; Atmosphere
+    </button>
+    <button class="tool-btn" id="btn-help" title="Keyboard Shortcuts [?]">
+      &#63; Controls
+    </button>
+  </div>
+
+  <!-- PDF-Inspired WASD Direction Compass (Bottom Right) -->
+  <div class="wasd-widget">
+    <div class="widget-title">WASD Controls</div>
+    <div class="wasd-cross">
+      <div class="wasd-key" id="key-w">W<span class="arrow">&uarr;</span></div>
+      <div class="wasd-key" id="key-a">A<span class="arrow">&larr;</span></div>
+      <div class="wasd-key" id="key-s">S<span class="arrow">&darr;</span></div>
+      <div class="wasd-key" id="key-d">D<span class="arrow">&rarr;</span></div>
+    </div>
+    <div class="widget-hint">Hold Shift to Sprint</div>
+  </div>
+
+  <!-- Bottom Quick Controls Bar -->
+  <div class="bottom-bar">
+    <button class="chip-btn" id="btn-traffic">&#9881; Traffic: Active</button>
+    <button class="chip-btn" id="btn-audio">&#9835; Footstep &amp; City Sound</button>
+    <button class="chip-btn" id="btn-jump">&#8679; Jump [Space]</button>
+  </div>
+
+  <!-- Keyboard Shortcuts Cheat Sheet Modal -->
+  <div class="help-modal" id="help-modal">
+    <div class="help-header">
+      <h3><span>&#9881;</span> Pedestrian Navigation &amp; City Controls</h3>
+      <button class="close-btn" id="btn-close-help">&times;</button>
+    </div>
+    <div class="help-grid">
+      <div class="help-row"><span class="key-tag">W</span><span>Walk Forward along Road</span></div>
+      <div class="help-row"><span class="key-tag">S</span><span>Walk Backward</span></div>
+      <div class="help-row"><span class="key-tag">A</span><span>Strafe Left</span></div>
+      <div class="help-row"><span class="key-tag">D</span><span>Strafe Right</span></div>
+      <div class="help-row"><span class="key-tag">Shift</span><span>Sprint (Human Jog Pace)</span></div>
+      <div class="help-row"><span class="key-tag">Space</span><span>Pedestrian Jump</span></div>
+      <div class="help-row"><span class="key-tag">Mouse Drag</span><span>Look Around / Gaze up at Towers</span></div>
+      <div class="help-row"><span class="key-tag">Arrows</span><span>Turn &amp; Tilt Camera</span></div>
+      <div class="help-row"><span class="key-tag">Q / E</span><span>Turn Camera Left / Right</span></div>
+      <div class="help-row"><span class="key-tag">G</span><span>Randomize City &amp; Street Grid</span></div>
+      <div class="help-row"><span class="key-tag">R</span><span>Reset Position to Street Level</span></div>
+      <div class="help-row"><span class="key-tag">V</span><span>Toggle Aerial / Pedestrian View</span></div>
+      <div class="help-row"><span class="key-tag">N</span><span>Cycle Day / Sunset / Night</span></div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    /**
+     * CS460 Assignment 2 - XTK Random 3D Cube City & Walkable Road
+     * Upgraded for massive scale, randomized street network, and realistic pedestrian kinematics.
+     */
+    window.onload = function() {
+      'use strict';
+
+      // -----------------------------------------------------------------------
+      // 1. PEDESTRIAN MOVEMENT PHYSICS & CAMERA STATE
+      // -----------------------------------------------------------------------
+      var pedestrian = {
+        x: 0.0,
+        y: 7.8,             // Realistic human street-level eye height (~7.8 units)
+        z: 260.0,           // Starting position on the road looking forward
+        baseEyeHeight: 7.8,
+        velX: 0.0,          // Current kinematic horizontal velocity
+        velZ: 0.0,
+        velY: 0.0,          // Vertical jump velocity
+        isGrounded: true,
+        walkSpeed: 42.0,    // Natural walking speed (units/sec)
+        sprintSpeed: 95.0,  // Sprinting speed
+        accel: 14.0,        // Smooth pedestrian acceleration rate
+        friction: 10.0,     // Ground friction damping
+        yaw: 0.0,           // Facing down the avenue (-Z direction)
+        pitch: 0.02,        // Natural horizontal viewing tilt
+        walkCycle: 0.0,     // Step cycle phase
+        bobY: 0.0,          // Vertical head-bob
+        swayX: 0.0          // Lateral shoulder sway
+      };
+
+      var state = {
+        viewMode: 'walk',    // 'walk' (street-level pedestrian) or 'aerial' (drone)
+        atmosphere: 'day',   // 'day', 'sunset', 'night'
+        trafficEnabled: true,
+        audioEnabled: false,
+        droneAngle: 0.0,
+        activeBuildings: 0,
+        activeStreets: 0
+      };
+
+      var keys = {
+        w: false,
+        a: false,
+        s: false,
+        d: false,
+        q: false,
+        e: false,
+        shift: false,
+        space: false,
+        arrowup: false,
+        arrowdown: false,
+        arrowleft: false,
+        arrowright: false
+      };
+
+      // -----------------------------------------------------------------------
+      // 2. XTK RENDERER INITIALIZATION
+      // -----------------------------------------------------------------------
+      var r = new X.renderer3D();
+      r.container = 'canvas-container';
+      r.init();
+
+      // Configure initial pedestrian perspective
+      r.camera.position = [pedestrian.x, pedestrian.y, pedestrian.z];
+      r.camera.focus = [pedestrian.x, pedestrian.y, pedestrian.z - 100];
+      r.camera.up = [0, 1, 0];
+
+      // -----------------------------------------------------------------------
+      // 3. COLOR PALETTES (PDF ART STYLE + EXTENDED METROPOLIS)
+      // -----------------------------------------------------------------------
+      var PALETTE_CITY = [
+        [0.98, 0.85, 0.12], // Canary Yellow (left skyscraper in PDF)
+        [0.32, 0.65, 0.88], // Sky/Steel Blue (right skyscraper in PDF)
+        [0.45, 0.80, 0.22], // Leaf Green (front-left building in PDF)
+        [0.65, 0.20, 0.75], // Royal Purple (foreground left cube in PDF)
+        [0.95, 0.52, 0.12], // Amber Orange (horizontal building in PDF)
+        [0.90, 0.18, 0.22], // Ruby Red (right foreground cube in PDF)
+        [0.08, 0.88, 0.95], // Electric Cyan
+        [0.96, 0.40, 0.55], // Coral Pink
+        [0.22, 0.92, 0.65], // Mint Jade
+        [0.55, 0.35, 0.88], // Twilight Lavender
+        [0.98, 0.72, 0.22], // Sunburst Gold
+        [0.18, 0.32, 0.75], // Deep Cobalt
+        [0.75, 0.82, 0.90], // Architectural Glass
+        [0.88, 0.65, 0.45]  // Sandstone Brick
+      ];
+
+      // -----------------------------------------------------------------------
+      // 4. UNIFIED CUBE OBJECT POOLING ARCHITECTURE
+      // -----------------------------------------------------------------------
+      // Pre-allocate pools to prevent memory fragmentation and ensure 100% clean
+      // randomizations with zero orphaned beacons, antennas, or street markings!
+      var POOL_BUILDINGS_COUNT = 340;
+      var POOL_STREET_COUNT = 140;
+      var POOL_LIGHTS_COUNT = 40;
+      var POOL_TRAFFIC_COUNT = 16;
+
+      var buildingPool = [];
+      var streetPool = [];
+      var lightPool = [];
+      var trafficPool = [];
+
+      function createPooledCube(pool, defaultColor) {
+        var c = new X.cube();
+        // Base geometry unit size 20 (XTK standard default)
+        c.lengthX = 20.0;
+        c.lengthY = 20.0;
+        c.lengthZ = 20.0;
+        c.center = [0, 0, 0];
+        c.color = defaultColor || [0.5, 0.5, 0.5];
+        c.visible = false;
+        r.add(c);
+        pool.push(c);
+        return c;
+      }
+
+      for (var i = 0; i < POOL_BUILDINGS_COUNT; i++) createPooledCube(buildingPool, [0.3, 0.6, 0.9]);
+      for (var j = 0; j < POOL_STREET_COUNT; j++)    createPooledCube(streetPool, [0.2, 0.2, 0.2]);
+      for (var k = 0; k < POOL_LIGHTS_COUNT; k++)    createPooledCube(lightPool, [1.0, 0.9, 0.5]);
+      for (var m = 0; m < POOL_TRAFFIC_COUNT; m++)   createPooledCube(trafficPool, [0.9, 0.2, 0.2]);
+
+      // Direct 4x4 Transformation Matrix Configuration Helper
+      function configureCube(c, x, y, z, w, h, d, color, opacity) {
+        c.visible = true;
+        c.color = color;
+        if (opacity !== undefined) c.opacity = opacity;
+
+        var mat = c.transform.matrix;
+        if (mat) {
+          // Scale from base 20-unit cube
+          mat[0] = w / 20.0;
+          mat[1] = 0;
+          mat[2] = 0;
+          mat[3] = 0;
+
+          mat[4] = 0;
+          mat[5] = h / 20.0;
+          mat[6] = 0;
+          mat[7] = 0;
+
+          mat[8] = 0;
+          mat[9] = 0;
+          mat[10] = d / 20.0;
+          mat[11] = 0;
+
+          // Translation
+          mat[12] = x;
+          mat[13] = y;
+          mat[14] = z;
+          mat[15] = 1;
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 5. RANDOMIZED STREET & ROAD NETWORK GENERATOR
+      // -----------------------------------------------------------------------
+      var streetAllocIdx = 0;
+      var lightAllocIdx = 0;
+      var currentCrossStreets = [];
+
+      function getPooledStreet() {
+        if (streetAllocIdx < streetPool.length) {
+          return streetPool[streetAllocIdx++];
+        }
+        return null;
+      }
+
+      function getPooledLight() {
+        if (lightAllocIdx < lightPool.length) {
+          return lightPool[lightAllocIdx++];
+        }
+        return null;
+      }
+
+      function generateRandomStreetGrid() {
+        // Hide all previously allocated street & light cubes
+        for (var i = 0; i < streetPool.length; i++) streetPool[i].visible = false;
+        for (var j = 0; j < lightPool.length; j++) lightPool[j].visible = false;
+        streetAllocIdx = 0;
+        lightAllocIdx = 0;
+
+        // 1. Massive Ground Foundation
+        var ground = getPooledStreet();
+        if (ground) {
+          configureCube(ground, 0, -0.6, -150, 1600, 1.0, 1600, [0.46, 0.47, 0.50]); // PDF neutral grey ground
+        }
+
+        // 2. Randomized Main Avenue
+        var mainAveWidth = 44.0 + (Math.random() > 0.5 ? 4.0 : 0.0);
+        var mainAveLen = 1200.0;
+        var mainRoad = getPooledStreet();
+        if (mainRoad) {
+          configureCube(mainRoad, 0, 0.1, -150, mainAveWidth, 1.2, mainAveLen, [0.18, 0.19, 0.22]);
+        }
+
+        // 3. Procedural Cross-Street Intersections (Random 2 to 4 intersections)
+        currentCrossStreets = [];
+        var numCrossways = 2 + Math.floor(Math.random() * 3); // 2, 3, or 4
+        var crossZSlots = [80, -80, -260, -460];
+
+        // Shuffle slots
+        crossZSlots.sort(function() { return 0.5 - Math.random(); });
+        var chosenZ = crossZSlots.slice(0, numCrossways);
+        chosenZ.sort(function(a, b) { return b - a; });
+
+        for (var c = 0; c < chosenZ.length; c++) {
+          var zPos = chosenZ[c];
+          // Always ensure the first intersection near Z=70 matches the PDF sketch (branching right!)
+          var type;
+          if (c === 0 && Math.abs(zPos - 80) < 30) {
+            type = 'right'; // Matches assignment 2.pdf!
+          } else {
+            var roll = Math.random();
+            type = (roll > 0.6) ? 'cross' : (roll > 0.3 ? 'left' : 'right');
+          }
+
+          var streetW = 38.0 + Math.random() * 10.0;
+          currentCrossStreets.push({ z: zPos, width: streetW, type: type });
+
+          // Build asphalt slab for the cross-street
+          var cRoad = getPooledStreet();
+          if (cRoad) {
+            var cRoadX = 0, cRoadLen = 0;
+            if (type === 'right') {
+              cRoadX = 250.0;
+              cRoadLen = 500.0;
+            } else if (type === 'left') {
+              cRoadX = -250.0;
+              cRoadLen = 500.0;
+            } else {
+              cRoadX = 0.0;
+              cRoadLen = 980.0;
+            }
+            configureCube(cRoad, cRoadX, 0.1, zPos, cRoadLen, 1.2, streetW, [0.18, 0.19, 0.22]);
+          }
+
+          // Crosswalk Zebra Stripes across the main avenue and side street
+          for (var zw = -mainAveWidth * 0.45; zw <= mainAveWidth * 0.45; zw += 6.5) {
+            var stripe1 = getPooledStreet();
+            if (stripe1) configureCube(stripe1, zw, 0.35, zPos - streetW * 0.55 - 4.0, 3.5, 1.4, 7.0, [0.92, 0.92, 0.94]);
+            var stripe2 = getPooledStreet();
+            if (stripe2) configureCube(stripe2, zw, 0.35, zPos + streetW * 0.55 + 4.0, 3.5, 1.4, 7.0, [0.92, 0.92, 0.94]);
+          }
+        }
+
+        // 4. Sidewalk Curbs with Openings at All Intersections
+        var curbWidth = 14.0;
+        var curbL_X = -(mainAveWidth * 0.5 + curbWidth * 0.5);
+        var curbR_X = (mainAveWidth * 0.5 + curbWidth * 0.5);
+
+        // Segment the sidewalks around cross-streets
+        var sortedIntervals = currentCrossStreets.slice().sort(function(a, b) { return b.z - a.z; });
+        var zCur = 440;
+
+        for (var s = 0; s < sortedIntervals.length; s++) {
+          var cs = sortedIntervals[s];
+          var gapTop = cs.z + cs.width * 0.5 + 4;
+          var gapBot = cs.z - cs.width * 0.5 - 4;
+
+          // Sidewalk section before intersection
+          var segLen = zCur - gapTop;
+          if (segLen > 10) {
+            var segMidZ = zCur - segLen * 0.5;
+            // Left curb
+            if (cs.type !== 'left' && cs.type !== 'cross') {
+              var sL = getPooledStreet();
+              if (sL) configureCube(sL, curbL_X, 0.4, segMidZ, curbWidth, 1.8, segLen, [0.66, 0.67, 0.70]);
+            } else {
+              var sL2 = getPooledStreet();
+              if (sL2) configureCube(sL2, curbL_X, 0.4, segMidZ, curbWidth, 1.8, segLen, [0.66, 0.67, 0.70]);
+            }
+
+            // Right curb
+            var sR = getPooledStreet();
+            if (sR) configureCube(sR, curbR_X, 0.4, segMidZ, curbWidth, 1.8, segLen, [0.66, 0.67, 0.70]);
+          }
+
+          zCur = gapBot;
+        }
+
+        // Final sidewalk tail
+        if (zCur > -740) {
+          var tailLen = zCur - (-740);
+          var tailMid = zCur - tailLen * 0.5;
+          var tL = getPooledStreet();
+          if (tL) configureCube(tL, curbL_X, 0.4, tailMid, curbWidth, 1.8, tailLen, [0.66, 0.67, 0.70]);
+          var tR = getPooledStreet();
+          if (tR) configureCube(tR, curbR_X, 0.4, tailMid, curbWidth, 1.8, tailLen, [0.66, 0.67, 0.70]);
+        }
+
+        // 5. Dashed White Center-Lane Markings down the Avenue
+        for (var zM = 420; zM >= -720; zM -= 32) {
+          var inIntersection = false;
+          for (var ci = 0; ci < currentCrossStreets.length; ci++) {
+            if (Math.abs(zM - currentCrossStreets[ci].z) < (currentCrossStreets[ci].width * 0.5 + 8)) {
+              inIntersection = true;
+              break;
+            }
+          }
+          if (inIntersection) continue;
+
+          var dash = getPooledStreet();
+          if (dash) {
+            configureCube(dash, 0, 0.35, zM, 1.8, 1.4, 16.0, [0.95, 0.95, 0.95]);
+          }
+        }
+
+        // 6. Streetlight Posts & Warm Glowing Bulbs along the Sidewalks
+        for (var zL = 360; zL >= -680; zL -= 85) {
+          var nearCrossway = false;
+          for (var cj = 0; cj < currentCrossStreets.length; cj++) {
+            if (Math.abs(zL - currentCrossStreets[cj].z) < 30) {
+              nearCrossway = true;
+              break;
+            }
+          }
+          if (nearCrossway) continue;
+
+          // Left post & lamp
+          var postL = getPooledLight();
+          if (postL) configureCube(postL, curbL_X, 12.0, zL, 1.4, 24.0, 1.4, [0.24, 0.26, 0.30]);
+          var bulbL = getPooledLight();
+          if (bulbL) configureCube(bulbL, curbL_X, 24.5, zL, 4.0, 3.2, 4.0, [1.0, 0.92, 0.60]);
+
+          // Right post & lamp
+          var postR = getPooledLight();
+          if (postR) configureCube(postR, curbR_X, 12.0, zL, 1.4, 24.0, 1.4, [0.24, 0.26, 0.30]);
+          var bulbR = getPooledLight();
+          if (bulbR) configureCube(bulbR, curbR_X, 24.5, zL, 4.0, 3.2, 4.0, [1.0, 0.92, 0.60]);
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 6. RANDOMIZED MEGALOPOLIS GENERATOR (300+ CUBES, SCALE & ABUNDANCE)
+      // -----------------------------------------------------------------------
+      var buildingAllocIdx = 0;
+      var activeBuildingObstacles = []; // For pedestrian collision avoidance
+
+      function getPooledBuilding() {
+        if (buildingAllocIdx < buildingPool.length) {
+          return buildingPool[buildingAllocIdx++];
+        }
+        return null;
+      }
+
+      function isPointInRoad(x, z, margin) {
+        margin = margin || 8;
+        // Main avenue bounds
+        if (Math.abs(x) < (28.0 + margin)) return true;
+
+        // Cross-street bounds
+        for (var i = 0; i < currentCrossStreets.length; i++) {
+          var cs = currentCrossStreets[i];
+          if (Math.abs(z - cs.z) < (cs.width * 0.5 + margin)) {
+            if (cs.type === 'cross') return true;
+            if (cs.type === 'right' && x > -margin) return true;
+            if (cs.type === 'left' && x < margin) return true;
+          }
+        }
+        return false;
+      }
+
+      function buildTower(x, z, w, h, d, baseColor) {
+        var baseMesh = getPooledBuilding();
+        if (!baseMesh) return;
+
+        configureCube(baseMesh, x, h * 0.5, z, w, h, d, baseColor);
+        activeBuildingObstacles.push({
+          minX: x - w * 0.5 - 3.0,
+          maxX: x + w * 0.5 + 3.0,
+          minZ: z - d * 0.5 - 3.0,
+          maxZ: z + d * 0.5 + 3.0
+        });
+
+        // Multi-tiered skyscraper architectural setback for massive scale
+        if (h > 150.0 && Math.random() > 0.35) {
+          var setbackMesh = getPooledBuilding();
+          if (setbackMesh) {
+            var sw = w * 0.65;
+            var sd = d * 0.65;
+            var sh = 35.0 + Math.random() * 45.0;
+            var sColor = [
+              Math.min(1.0, baseColor[0] * 1.15),
+              Math.min(1.0, baseColor[1] * 1.15),
+              Math.min(1.0, baseColor[2] * 1.15)
+            ];
+            configureCube(setbackMesh, x, h + sh * 0.5, z, sw, sh, sd, sColor);
+
+            // Rooftop antenna / glowing beacon
+            if (Math.random() > 0.4) {
+              var ant = getPooledBuilding();
+              if (ant) configureCube(ant, x, h + sh + 15.0, z, 1.6, 30.0, 1.6, [0.95, 0.18, 0.22]);
+              var beacon = getPooledBuilding();
+              if (beacon) configureCube(beacon, x, h + sh + 30.0, z, 3.6, 3.6, 3.6, [1.0, 0.95, 0.95]);
+            }
+          }
+        } else if (h > 100.0 && Math.random() > 0.55) {
+          // Direct beacon spire on mid-size towers
+          var ant2 = getPooledBuilding();
+          if (ant2) configureCube(ant2, x, h + 12.0, z, 1.5, 24.0, 1.5, [0.92, 0.2, 0.2]);
+          var beacon2 = getPooledBuilding();
+          if (beacon2) configureCube(beacon2, x, h + 24.0, z, 3.2, 3.2, 3.2, [1.0, 1.0, 0.9]);
+        }
+      }
+
+      function populateCity() {
+        // 1. Reset and hide ALL building cubes in the pool
+        // This GUARANTEES no orphaned beacons or antennas can ever exist!
+        for (var b = 0; b < buildingPool.length; b++) {
+          buildingPool[b].visible = false;
+        }
+        buildingAllocIdx = 0;
+        activeBuildingObstacles = [];
+
+        // 2. Generate new randomized road & street network first
+        generateRandomStreetGrid();
+
+        // 3. THE 6 SIGNATURE DRAWING BUILDINGS (Placed with authentic PDF colors in foreground):
+        // Left side:
+        // - Purple foreground cube
+        buildTower(-48, 185, 26, 26, 26, [0.65, 0.20, 0.75]);
+        // - Green mid-rise block
+        buildTower(-55, 95, 34, 75, 34, [0.45, 0.80, 0.22]);
+        // - Canary Yellow towering skyscraper
+        buildTower(-64, -40, 34, 210, 32, [0.98, 0.85, 0.12]);
+
+        // Right side:
+        // - Ruby Red cube near intersection
+        buildTower(50, 125, 24, 28, 24, [0.90, 0.18, 0.22]);
+        // - Sky Blue tall skyscraper
+        buildTower(68, -30, 38, 240, 36, [0.32, 0.65, 0.88]);
+        // - Elongated Orange horizontal building past intersection
+        buildTower(84, 180, 80, 38, 34, [0.95, 0.52, 0.12]);
+
+        // 4. MASSIVE PROCEDURAL MEGALOPOLIS (Deep Skyline & Scale Abundance):
+        // Lateral columns: Left side X in [-55, -420], Right side X in [55, 420]
+        var leftCols = [-50, -95, -145, -200, -260, -325, -395];
+        var rightCols = [50, 95, 145, 200, 260, 325, 395];
+        var zRows = [340, 260, 180, 100, 20, -60, -140, -220, -300, -380, -460, -540, -620, -700];
+
+        // Left City Blocks
+        for (var lc = 0; lc < leftCols.length; lc++) {
+          var lx = leftCols[lc];
+          for (var lzIdx = 0; lzIdx < zRows.length; lzIdx++) {
+            var lz = zRows[lzIdx];
+
+            // Skip space reserved for signature buildings
+            if (lc === 0 && (lzIdx === 1 || lzIdx === 2 || lzIdx === 4 || lzIdx === 5)) continue;
+
+            var jitterX = (Math.random() - 0.5) * 16.0;
+            var jitterZ = (Math.random() - 0.5) * 18.0;
+            var posX = lx + jitterX;
+            var posZ = lz + jitterZ;
+
+            // Check against roads
+            if (isPointInRoad(posX, posZ, 12.0)) continue;
+
+            // 85% lot density
+            if (Math.random() < 0.85) {
+              var bw = 24.0 + Math.random() * 32.0;
+              var bd = 24.0 + Math.random() * 32.0;
+
+              // Height distribution for colossal scale:
+              // Towers soar up to 340 units into the sky!
+              var hRoll = Math.random();
+              var bh;
+              if (hRoll > 0.82) {
+                bh = 170.0 + Math.random() * 170.0; // Colossal Skyscraper (170 - 340)
+              } else if (hRoll > 0.44) {
+                bh = 65.0 + Math.random() * 95.0;   // High-Rise (65 - 160)
+              } else {
+                bh = 22.0 + Math.random() * 38.0;   // Urban Block (22 - 60)
+              }
+
+              var bCol = PALETTE_CITY[Math.floor(Math.random() * PALETTE_CITY.length)];
+              buildTower(posX, posZ, bw, bh, bd, bCol);
+            }
+          }
+        }
+
+        // Right City Blocks
+        for (var rc = 0; rc < rightCols.length; rc++) {
+          var rx = rightCols[rc];
+          for (var rzIdx = 0; rzIdx < zRows.length; rzIdx++) {
+            var rz = zRows[rzIdx];
+
+            // Skip space reserved for signature buildings
+            if (rc === 0 && (rzIdx === 1 || rzIdx === 2 || rzIdx === 4 || rzIdx === 5)) continue;
+
+            var jX = (Math.random() - 0.5) * 16.0;
+            var jZ = (Math.random() - 0.5) * 18.0;
+            var pX = rx + jX;
+            var pZ = rz + jZ;
+
+            if (isPointInRoad(pX, pZ, 12.0)) continue;
+
+            if (Math.random() < 0.85) {
+              var bW = 24.0 + Math.random() * 32.0;
+              var bD = 24.0 + Math.random() * 32.0;
+
+              // Occasionally generate elongated horizontal building like in PDF
+              if (Math.random() > 0.84) {
+                bW = 65.0 + Math.random() * 35.0;
+                bD = 28.0 + Math.random() * 12.0;
+              }
+
+              var hRoll2 = Math.random();
+              var bH;
+              if (hRoll2 > 0.80) {
+                bH = 175.0 + Math.random() * 165.0; // Towering Skyscraper
+              } else if (hRoll2 > 0.42) {
+                bH = 65.0 + Math.random() * 95.0;
+              } else {
+                bH = 22.0 + Math.random() * 36.0;
+              }
+
+              var bCol2 = PALETTE_CITY[Math.floor(Math.random() * PALETTE_CITY.length)];
+              buildTower(pX, pZ, bW, bH, bD, bCol2);
+            }
+          }
+        }
+
+        // Count active cubes
+        var activeCubes = 0;
+        for (var i = 0; i < buildingPool.length; i++) if (buildingPool[i].visible) activeCubes++;
+        for (var j = 0; j < streetPool.length; j++) if (streetPool[j].visible) activeCubes++;
+        for (var k = 0; k < lightPool.length; k++) if (lightPool[k].visible) activeCubes++;
+
+        document.getElementById('stat-cubes').innerText = activeCubes + ' Cubes';
+      }
+
+      // -----------------------------------------------------------------------
+      // 7. TRAFFIC CARS (Moving City Cubes)
+      // -----------------------------------------------------------------------
+      var trafficCars = [];
+      function initTraffic() {
+        var carColors = [
+          [0.98, 0.85, 0.12], // Yellow cab
+          [0.90, 0.18, 0.22], // Red car
+          [0.22, 0.65, 0.95], // Blue sedan
+          [0.95, 0.95, 0.95], // White SUV
+          [0.45, 0.80, 0.22]  // Green delivery van
+        ];
+
+        trafficCars = [];
+        for (var i = 0; i < trafficPool.length; i++) {
+          var isNorthbound = (i % 2 === 0);
+          var car = trafficPool[i];
+          var startZ = 380 - (i * 75) + (Math.random() - 0.5) * 30;
+          var laneX = isNorthbound ? 11.5 : -11.5;
+
+          configureCube(car, laneX, 1.8, startZ, 6.2, 3.6, 12.0, carColors[i % carColors.length]);
+
+          trafficCars.push({
+            mesh: car,
+            isNorth: isNorthbound,
+            laneX: laneX,
+            z: startZ,
+            speed: 55.0 + Math.random() * 35.0
+          });
+        }
+      }
+
+      function updateTraffic(dt) {
+        if (!state.trafficEnabled) return;
+        for (var i = 0; i < trafficCars.length; i++) {
+          var t = trafficCars[i];
+          if (t.isNorth) {
+            t.z -= t.speed * dt;
+            if (t.z < -720) t.z = 420;
+          } else {
+            t.z += t.speed * dt;
+            if (t.z > 420) t.z = -720;
+          }
+          t.mesh.transform.matrix[14] = t.z;
+        }
+      }
+
+      // Generate City
+      populateCity();
+      initTraffic();
+
+      // -----------------------------------------------------------------------
+      // 8. INPUT CONTROLLER (WASD & MOUSE LOOK)
+      // -----------------------------------------------------------------------
+      function setKeyActive(keyId, active) {
+        var el = document.getElementById(keyId);
+        if (el) {
+          if (active) el.classList.add('active');
+          else el.classList.remove('active');
+        }
+      }
+
+      window.addEventListener('keydown', function(ev) {
+        var k = ev.key.toLowerCase();
+
+        if (k === 'w') { keys.w = true; setKeyActive('key-w', true); }
+        if (k === 'a') { keys.a = true; setKeyActive('key-a', true); }
+        if (k === 's') { keys.s = true; setKeyActive('key-s', true); }
+        if (k === 'd') { keys.d = true; setKeyActive('key-d', true); }
+        if (k === 'shift') { keys.shift = true; }
+        if (k === ' ') {
+          ev.preventDefault();
+          if (pedestrian.isGrounded) {
+            pedestrian.velY = 24.0; // Pedestrian hop / jump
+            pedestrian.isGrounded = false;
+          }
+        }
+
+        if (k === 'q') keys.q = true;
+        if (k === 'e') keys.e = true;
+        if (k === 'arrowup') { ev.preventDefault(); keys.arrowup = true; }
+        if (k === 'arrowdown') { ev.preventDefault(); keys.arrowdown = true; }
+        if (k === 'arrowleft') { ev.preventDefault(); keys.arrowleft = true; }
+        if (k === 'arrowright') { ev.preventDefault(); keys.arrowright = true; }
+
+        // Global Hotkeys
+        if (k === 'g') { populateCity(); }
+        if (k === 'r') { resetPlayer(); }
+        if (k === 'v') { toggleViewMode(); }
+        if (k === 'n') { cycleAtmosphere(); }
+        if (k === 't') { toggleTraffic(); }
+        if (k === '?' || k === '/') { toggleHelp(); }
+        if (k === 'escape') { document.getElementById('help-modal').classList.remove('open'); }
+      });
+
+      window.addEventListener('keyup', function(ev) {
+        var k = ev.key.toLowerCase();
+        if (k === 'w') { keys.w = false; setKeyActive('key-w', false); }
+        if (k === 'a') { keys.a = false; setKeyActive('key-a', false); }
+        if (k === 's') { keys.s = false; setKeyActive('key-s', false); }
+        if (k === 'd') { keys.d = false; setKeyActive('key-d', false); }
+        if (k === 'shift') { keys.shift = false; }
+
+        if (k === 'q') keys.q = false;
+        if (k === 'e') keys.e = false;
+        if (k === 'arrowup') keys.arrowup = false;
+        if (k === 'arrowdown') keys.arrowdown = false;
+        if (k === 'arrowleft') keys.arrowleft = false;
+        if (k === 'arrowright') keys.arrowright = false;
+      });
+
+      // Mouse Look Navigation
+      var isDragging = false;
+      var lastMouseX = 0, lastMouseY = 0;
+      var canvasEl = document.getElementById('canvas-container');
+
+      canvasEl.addEventListener('mousedown', function(ev) {
+        if (ev.button === 0) {
+          isDragging = true;
+          lastMouseX = ev.clientX;
+          lastMouseY = ev.clientY;
+        }
+      });
+
+      window.addEventListener('mousemove', function(ev) {
+        if (!isDragging) return;
+        var dx = ev.clientX - lastMouseX;
+        var dy = ev.clientY - lastMouseY;
+        lastMouseX = ev.clientX;
+        lastMouseY = ev.clientY;
+
+        // Smooth pedestrian head look sensitivity
+        pedestrian.yaw -= dx * 0.0034;
+        pedestrian.pitch -= dy * 0.0030;
+
+        // Generous vertical look clamp: allows gazing straight up at towering skyscrapers!
+        pedestrian.pitch = Math.max(-1.38, Math.min(1.35, pedestrian.pitch));
+      });
+
+      window.addEventListener('mouseup', function(ev) {
+        if (ev.button === 0) isDragging = false;
+      });
+
+      // On-Screen WASD Controls Click Support
+      ['w', 'a', 's', 'd'].forEach(function(key) {
+        var el = document.getElementById('key-' + key);
+        el.addEventListener('mousedown', function(e) {
+          e.stopPropagation();
+          keys[key] = true;
+          setKeyActive('key-' + key, true);
+        });
+        window.addEventListener('mouseup', function() {
+          keys[key] = false;
+          setKeyActive('key-' + key, false);
+        });
+      });
+
+      // -----------------------------------------------------------------------
+      // 9. CAMERA & VIEW MODES
+      // -----------------------------------------------------------------------
+      function resetPlayer() {
+        pedestrian.x = 0.0;
+        pedestrian.y = pedestrian.baseEyeHeight;
+        pedestrian.z = 260.0;
+        pedestrian.velX = 0.0;
+        pedestrian.velZ = 0.0;
+        pedestrian.velY = 0.0;
+        pedestrian.isGrounded = true;
+        pedestrian.yaw = 0.0;
+        pedestrian.pitch = 0.02;
+        pedestrian.bobY = 0.0;
+        pedestrian.swayX = 0.0;
+        state.viewMode = 'walk';
+        document.getElementById('stat-eye').innerText = '7.8 (Pedestrian)';
+      }
+
+      function toggleViewMode() {
+        if (state.viewMode === 'walk') {
+          state.viewMode = 'aerial';
+          document.getElementById('stat-eye').innerText = '240.0 (Aerial Drone)';
+        } else {
+          state.viewMode = 'walk';
+          document.getElementById('stat-eye').innerText = '7.8 (Pedestrian)';
+        }
+      }
+
+      function cycleAtmosphere() {
+        var body = document.body;
+        if (state.atmosphere === 'day') {
+          state.atmosphere = 'sunset';
+          body.style.backgroundColor = 'var(--bg-sky-sunset)';
+          document.getElementById('stat-sky').innerText = 'Sunset Twilight';
+        } else if (state.atmosphere === 'sunset') {
+          state.atmosphere = 'night';
+          body.style.backgroundColor = 'var(--bg-sky-night)';
+          document.getElementById('stat-sky').innerText = 'Cyberpunk Night';
+        } else {
+          state.atmosphere = 'day';
+          body.style.backgroundColor = 'var(--bg-sky-day)';
+          document.getElementById('stat-sky').innerText = 'Day (PDF Style)';
+        }
+      }
+
+      function toggleTraffic() {
+        state.trafficEnabled = !state.trafficEnabled;
+        var btn = document.getElementById('btn-traffic');
+        if (state.trafficEnabled) {
+          btn.innerText = '⚙ Traffic: Active';
+          btn.classList.add('active');
+        } else {
+          btn.innerText = '⚙ Traffic: Paused';
+          btn.classList.remove('active');
+        }
+      }
+
+      function toggleHelp() {
+        document.getElementById('help-modal').classList.toggle('open');
+      }
+
+      // -----------------------------------------------------------------------
+      // 10. PEDESTRIAN AUDIO SYNTHESIZER (Footstep & Ambience)
+      // -----------------------------------------------------------------------
+      var audioCtx = null;
+      function playFootstep() {
+        if (!state.audioEnabled || !audioCtx) return;
+        try {
+          var stepOsc = audioCtx.createOscillator();
+          var stepGain = audioCtx.createGain();
+          var stepFilter = audioCtx.createBiquadFilter();
+
+          stepOsc.type = 'triangle';
+          stepOsc.frequency.setValueAtTime(80, audioCtx.currentTime);
+          stepOsc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.08);
+
+          stepFilter.type = 'lowpass';
+          stepFilter.frequency.setValueAtTime(200, audioCtx.currentTime);
+
+          stepGain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+          stepGain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+
+          stepOsc.connect(stepFilter);
+          stepFilter.connect(stepGain);
+          stepGain.connect(audioCtx.destination);
+
+          stepOsc.start();
+          stepOsc.stop(audioCtx.currentTime + 0.09);
+        } catch(e) {}
+      }
+
+      function toggleAudio() {
+        if (!audioCtx) {
+          try {
+            var AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+
+            // Low frequency ambient city hum
+            var osc = audioCtx.createOscillator();
+            var gain = audioCtx.createGain();
+            var filter = audioCtx.createBiquadFilter();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(58.0, audioCtx.currentTime);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(120, audioCtx.currentTime);
+
+            gain.gain.setValueAtTime(0.09, audioCtx.currentTime);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+          } catch(e) {}
+        }
+
+        if (audioCtx) {
+          if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+            state.audioEnabled = true;
+          } else if (audioCtx.state === 'running') {
+            audioCtx.suspend();
+            state.audioEnabled = false;
+          }
+        }
+
+        var btn = document.getElementById('btn-audio');
+        if (state.audioEnabled) {
+          btn.innerText = '♪ Audio: Active';
+          btn.classList.add('active');
+        } else {
+          btn.innerText = '♪ Footstep & City Sound';
+          btn.classList.remove('active');
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 11. PEDESTRIAN KINEMATICS & ANIMATION LOOP (XTK r.onRender)
+      // -----------------------------------------------------------------------
+      var lastTimestamp = performance.now();
+      var footstepDistance = 0.0;
+
+      r.onRender = function() {
+        var now = performance.now();
+        var dt = Math.min((now - lastTimestamp) * 0.001, 0.08);
+        lastTimestamp = now;
+
+        // 1. Keyboard Look Rotation (Q/E or Arrow Keys)
+        var turnRate = 2.4;
+        if (keys.q || keys.arrowleft) pedestrian.yaw += turnRate * dt;
+        if (keys.e || keys.arrowright) pedestrian.yaw -= turnRate * dt;
+        if (keys.arrowup) pedestrian.pitch = Math.min(1.35, pedestrian.pitch + turnRate * 0.7 * dt);
+        if (keys.arrowdown) pedestrian.pitch = Math.max(-1.38, pedestrian.pitch - turnRate * 0.7 * dt);
+
+        // 2. Pedestrian Ground Acceleration & Momentum
+        var targetSpeed = keys.shift ? pedestrian.sprintSpeed : pedestrian.walkSpeed;
+
+        var fwdX = -Math.sin(pedestrian.yaw);
+        var fwdZ = -Math.cos(pedestrian.yaw);
+        var rightX = Math.cos(pedestrian.yaw);
+        var rightZ = -Math.sin(pedestrian.yaw);
+
+        var moveInputX = 0, moveInputZ = 0;
+        if (keys.w) { moveInputX += fwdX; moveInputZ += fwdZ; }
+        if (keys.s) { moveInputX -= fwdX; moveInputZ -= fwdZ; }
+        if (keys.a) { moveInputX -= rightX; moveInputZ -= rightZ; }
+        if (keys.d) { moveInputX += rightX; moveInputZ += rightZ; }
+
+        var inputLen = Math.sqrt(moveInputX * moveInputX + moveInputZ * moveInputZ);
+        if (inputLen > 0) {
+          moveInputX = (moveInputX / inputLen) * targetSpeed;
+          moveInputZ = (moveInputZ / inputLen) * targetSpeed;
+        }
+
+        // Smooth human acceleration towards target velocity
+        pedestrian.velX += (moveInputX - pedestrian.velX) * Math.min(1.0, pedestrian.accel * dt);
+        pedestrian.velZ += (moveInputZ - pedestrian.velZ) * Math.min(1.0, pedestrian.accel * dt);
+
+        // Apply Pedestrian Velocity
+        var nextX = pedestrian.x + pedestrian.velX * dt;
+        var nextZ = pedestrian.z + pedestrian.velZ * dt;
+
+        // Collision Avoidance with Skyscraper Walls
+        var hitX = false;
+        var hitZ = false;
+        for (var i = 0; i < activeBuildingObstacles.length; i++) {
+          var obs = activeBuildingObstacles[i];
+          // Check X axis collision
+          if (nextX >= obs.minX && nextX <= obs.maxX && pedestrian.z >= obs.minZ && pedestrian.z <= obs.maxZ) {
+            hitX = true;
+          }
+          // Check Z axis collision
+          if (pedestrian.x >= obs.minX && pedestrian.x <= obs.maxX && nextZ >= obs.minZ && nextZ <= obs.maxZ) {
+            hitZ = true;
+          }
+        }
+
+        if (!hitX) pedestrian.x = nextX;
+        else pedestrian.velX = 0;
+
+        if (!hitZ) pedestrian.z = nextZ;
+        else pedestrian.velZ = 0;
+
+        // City Boundaries
+        pedestrian.x = Math.max(-440.0, Math.min(440.0, pedestrian.x));
+        pedestrian.z = Math.max(-740.0, Math.min(420.0, pedestrian.z));
+
+        // 3. Jump Gravity Physics
+        if (!pedestrian.isGrounded) {
+          pedestrian.velY -= 70.0 * dt; // Gravity
+          pedestrian.y += pedestrian.velY * dt;
+          if (pedestrian.y <= pedestrian.baseEyeHeight) {
+            pedestrian.y = pedestrian.baseEyeHeight;
+            pedestrian.velY = 0.0;
+            pedestrian.isGrounded = true;
+          }
+        }
+
+        // 4. Bipedal Gait Head-Bobbing & Shoulder Sway
+        var currentSpeed = Math.sqrt(pedestrian.velX * pedestrian.velX + pedestrian.velZ * pedestrian.velZ);
+        if (currentSpeed > 3.0 && pedestrian.isGrounded) {
+          pedestrian.walkCycle += dt * (currentSpeed * 0.28);
+          // Vertical head-bob (twice per gait cycle)
+          pedestrian.bobY = Math.sin(pedestrian.walkCycle * 2.0) * 0.32;
+          // Lateral shoulder sway (once per gait cycle)
+          pedestrian.swayX = Math.cos(pedestrian.walkCycle) * 0.14;
+
+          // Footstep audio trigger
+          footstepDistance += currentSpeed * dt;
+          if (footstepDistance > 16.0) {
+            footstepDistance = 0.0;
+            playFootstep();
+          }
+        } else {
+          // Smoothly damp bobbing back to natural breathing idle
+          pedestrian.bobY *= 0.88;
+          pedestrian.swayX *= 0.88;
+        }
+
+        // 5. Compute Camera 3D Position & Forward Focus
+        var eyeY = (state.viewMode === 'walk')
+          ? (pedestrian.y + pedestrian.bobY)
+          : 240.0;
+
+        var lookDirX = -Math.sin(pedestrian.yaw) * Math.cos(pedestrian.pitch);
+        var lookDirY = Math.sin(pedestrian.pitch);
+        var lookDirZ = -Math.cos(pedestrian.yaw) * Math.cos(pedestrian.pitch);
+
+        if (state.viewMode === 'walk') {
+          // Street-Level Pedestrian Perspective
+          r.camera.position = [pedestrian.x + pedestrian.swayX, eyeY, pedestrian.z];
+          r.camera.focus = [
+            pedestrian.x + lookDirX * 100.0,
+            eyeY + lookDirY * 100.0,
+            pedestrian.z + lookDirZ * 100.0
+          ];
+          r.camera.up = [0, 1, 0];
+        } else {
+          // Cinematic Aerial Drone View orbiting city
+          state.droneAngle += dt * 0.22;
+          var droneDist = 380.0;
+          r.camera.position = [
+            pedestrian.x + Math.sin(state.droneAngle) * droneDist,
+            eyeY,
+            pedestrian.z + Math.cos(state.droneAngle) * droneDist
+          ];
+          r.camera.focus = [pedestrian.x, 25.0, pedestrian.z];
+          r.camera.up = [0, 1, 0];
+        }
+
+        // 6. Update Traffic Cars
+        updateTraffic(dt);
+
+        // 7. Update Telemetry
+        document.getElementById('stat-pos').innerText = pedestrian.x.toFixed(1) + ', ' + pedestrian.z.toFixed(1);
+      };
+
+      // Start XTK rendering pipeline
+      r.render();
+
+      // -----------------------------------------------------------------------
+      // 12. ATTACH UI EVENT LISTENERS
+      // -----------------------------------------------------------------------
+      document.getElementById('btn-regen').addEventListener('click', populateCity);
+      document.getElementById('btn-reset').addEventListener('click', resetPlayer);
+      document.getElementById('btn-view').addEventListener('click', toggleViewMode);
+      document.getElementById('btn-sky').addEventListener('click', cycleAtmosphere);
+      document.getElementById('btn-help').addEventListener('click', toggleHelp);
+      document.getElementById('btn-close-help').addEventListener('click', toggleHelp);
+      document.getElementById('btn-traffic').addEventListener('click', toggleTraffic);
+      document.getElementById('btn-audio').addEventListener('click', toggleAudio);
+
+      // On-screen jump button
+      document.getElementById('btn-jump').addEventListener('click', function() {
+        if (pedestrian.isGrounded) {
+          pedestrian.velY = 24.0;
+          pedestrian.isGrounded = false;
+        }
+      });
+
+      // Window resize handling
+      window.addEventListener('resize', function() {
+        if (r && r.camera) {
+          // XTK auto-adapts canvas viewport upon next frame
+        }
+      });
+    };
+  </script>
+</body>
+</html>
