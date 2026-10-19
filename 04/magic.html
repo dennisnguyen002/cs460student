@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>CyberPlane - WebGL Magic Edition</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap');
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html,
+    body {
+      background-color: #030614;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden !important;
+      font-family: 'Rajdhani', sans-serif;
+      color: #e0f2fe;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #c {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: radial-gradient(circle at 50% 50%, #081226 0%, #02040a 100%);
+    }
+
+    /* Scanline effect */
+    .scanlines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0),
+        rgba(255,255,255,0) 50%,
+        rgba(0, 0, 0, 0.25) 50%,
+        rgba(0, 0, 0, 0.25)
+      );
+      background-size: 100% 4px;
+      pointer-events: none;
+      z-index: 5;
+      opacity: 0.7;
+    }
+
+    /* Vignette & Ambient Glow */
+    .vignette {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      box-shadow: inset 0 0 100px rgba(0, 240, 255, 0.15), inset 0 0 160px rgba(0, 0, 0, 0.85);
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    /* HUD Styling */
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 18px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .hud-panel {
+      background: rgba(8, 18, 38, 0.75);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+      border-radius: 8px;
+      padding: 12px 20px;
+    }
+
+    .hud-title {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #38bdf8;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .hud-value {
+      font-family: 'Orbitron', monospace;
+      font-size: 26px;
+      font-weight: 900;
+      color: #ffffff;
+      text-shadow: 0 0 12px #00f0ff;
+    }
+
+    .shield-bar-container {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .shield-pip {
+      width: 28px;
+      height: 10px;
+      background: #00f0ff;
+      border-radius: 2px;
+      box-shadow: 0 0 10px #00f0ff;
+      transition: all 0.25s ease;
+    }
+
+    .shield-pip.lost {
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: none;
+    }
+
+    #controls-hint {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(5, 12, 28, 0.7);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 13px;
+      color: #94a3b8;
+      letter-spacing: 1px;
+      z-index: 10;
+      pointer-events: none;
+      display: flex;
+      gap: 16px;
+    }
+
+    #controls-hint span {
+      color: #38bdf8;
+      font-weight: 700;
+    }
+
+    /* Modal Screens */
+    .screen-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(2, 6, 23, 0.85);
+      backdrop-filter: blur(12px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .screen-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .screen-box {
+      background: rgba(13, 27, 54, 0.95);
+      border: 2px solid #00f0ff;
+      box-shadow: 0 0 40px rgba(0, 240, 255, 0.35);
+      border-radius: 14px;
+      padding: 36px 48px;
+      text-align: center;
+      max-width: 480px;
+      animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.85); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .screen-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 38px;
+      font-weight: 900;
+      color: #ef4444;
+      text-shadow: 0 0 20px rgba(239, 68, 68, 0.7);
+      margin: 0 0 10px 0;
+      letter-spacing: 3px;
+    }
+
+    .screen-subtitle {
+      font-size: 18px;
+      color: #cbd5e1;
+      margin-bottom: 24px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: #94a3b8;
+      text-transform: uppercase;
+    }
+
+    .stat-val {
+      font-family: 'Orbitron', monospace;
+      font-size: 22px;
+      color: #00f0ff;
+      margin-top: 4px;
+    }
+
+    .btn-action {
+      background: linear-gradient(135deg, #00f0ff, #0284c7);
+      color: #030712;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 900;
+      font-size: 16px;
+      padding: 14px 34px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.5);
+      transition: all 0.2s ease;
+      letter-spacing: 1.5px;
+    }
+
+    .btn-action:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 35px rgba(0, 240, 255, 0.8);
+      background: linear-gradient(135deg, #38bdf8, #00f0ff);
+    }
+
+    .sound-btn {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      background: rgba(8, 18, 38, 0.75);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: #38bdf8;
+      font-family: 'Rajdhani', sans-serif;
+      font-weight: 700;
+      font-size: 13px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      pointer-events: auto;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .sound-btn:hover {
+      background: rgba(0, 240, 255, 0.2);
+      color: #fff;
+    }
+
+    /* Screen shake */
+    .shake {
+      animation: screenShake 0.25s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    }
+
+    @keyframes screenShake {
+      10%, 90% { transform: translate3d(-3px, 2px, 0); }
+      20%, 80% { transform: translate3d(4px, -3px, 0); }
+      30%, 50%, 70% { transform: translate3d(-5px, 3px, 0); }
+      40%, 60% { transform: translate3d(5px, -2px, 0); }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="game-container">
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+
+    <!-- HUD -->
+    <div id="hud">
+      <!-- Shield / Health -->
+      <div class="hud-panel">
+        <div class="hud-title">Energy Shields</div>
+        <div class="shield-bar-container" id="shield-container">
+          <div class="shield-pip" id="pip-1"></div>
+          <div class="shield-pip" id="pip-2"></div>
+          <div class="shield-pip" id="pip-3"></div>
+        </div>
+      </div>
+
+      <!-- Wave / Level -->
+      <div class="hud-panel" style="text-align: center;">
+        <div class="hud-title">Wave Level</div>
+        <div class="hud-value" id="level-display" style="color: #facc15; text-shadow: 0 0 12px #facc15;">01</div>
+      </div>
+
+      <!-- Scoreboard -->
+      <div class="hud-panel" style="text-align: right; margin-right: 90px;">
+        <div class="hud-title">Mission Score</div>
+        <div class="hud-value" id="scoreboard">0</div>
+      </div>
+    </div>
+
+    <button id="sound-toggle" class="sound-btn">
+      <span>🔊</span> AUDIO: ON
+    </button>
+
+    <div id="controls-hint">
+      <div><span>ARROW / WASD</span> Flight Thrusters</div>
+      <div><span>SPACE</span> Plasma Cannons</div>
+      <div><span>P</span> Pause</div>
+    </div>
+
+    <!-- Canvas -->
+    <canvas id="c"></canvas>
+
+    <!-- Game Over Screen -->
+    <div id="gameover-screen" class="screen-overlay">
+      <div class="screen-box">
+        <h1 class="screen-title">HULL BREACH</h1>
+        <div class="screen-subtitle">Your airplane was destroyed by space debris</div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Final Score</div>
+            <div class="stat-val" id="final-score">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Best Record</div>
+            <div class="stat-val" id="best-score">0</div>
+          </div>
+        </div>
+        <button id="restart-btn" class="btn-action">LAUNCH AGAIN [R]</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WebGL Vertex Shader -->
+  <script id="vertexshader" type="glsl">
+    attribute vec3 a_position;
+    uniform vec3 u_offset;
+    uniform float u_pointsize;
+    uniform float u_rotation;
+
+    void main(void) {
+      gl_PointSize = u_pointsize;
+
+      // 2D Rotation matrix around Z axis
+      float cosR = cos(u_rotation);
+      float sinR = sin(u_rotation);
+      mat2 rot = mat2(cosR, -sinR, sinR, cosR);
+
+      vec2 rotated_pos = rot * a_position.xy;
+      vec3 final_position = vec3(rotated_pos + u_offset.xy, a_position.z + u_offset.z);
+
+      gl_Position = vec4(final_position, 1.0);
+    }
+  </script>
+
+  <!-- WebGL Fragment Shader -->
+  <script id="fragmentshader" type="glsl">
+    precision mediump float;
+    uniform vec4 u_color;
+    uniform int u_drawmode; // 0: Normal geometry, 1: Glowing round particles, 2: Energy Star
+
+    void main(void) {
+      if (u_drawmode == 1) {
+        // Glowing circular particle with soft radial gradient
+        vec2 coord = gl_PointCoord - vec2(0.5);
+        float dist = length(coord);
+        if (dist > 0.5) {
+          discard;
+        }
+        float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+        gl_FragColor = vec4(u_color.rgb * 1.3, u_color.a * alpha);
+      } else if (u_drawmode == 2) {
+        // Energy star particle
+        vec2 coord = gl_PointCoord - vec2(0.5);
+        float dist = length(coord);
+        if (dist > 0.5) {
+          discard;
+        }
+        float ring = 1.0 - abs(dist - 0.25) * 4.0;
+        ring = clamp(ring, 0.0, 1.0);
+        gl_FragColor = vec4(u_color.rgb * 1.5, u_color.a * max(ring, 1.0 - dist * 2.0));
+      } else {
+        gl_FragColor = u_color;
+      }
+    }
+  </script>
+
+  <!-- Game Logic & WebGL Implementation -->
+  <script>
+    // --- Synthesized Web Audio Engine (Zero external dependencies) ---
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.muted = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext) {
+            this.ctx = new AudioContext();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      playLaser() {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.12);
+      }
+
+      playExplosion() {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const bufferSize = this.ctx.sampleRate * 0.35;
+        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const data = buffer.getChannelData(0);
+
+        for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = buffer;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(900, now);
+        filter.frequency.exponentialRampToValueAtTime(60, now + 0.35);
+
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+        noise.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        noise.start(now);
+      }
+
+      playHit() {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.linearRampToValueAtTime(70, now + 0.2);
+
+        gain.gain.setValueAtTime(0.4, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.2);
+      }
+
+      playPowerup() {
+        if (this.muted || !this.ctx) return;
+        const now = this.ctx.currentTime;
+        const notes = [440, 554.37, 659.25, 880];
+        notes.forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const time = now + idx * 0.05;
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, time);
+
+          gain.gain.setValueAtTime(0.2, time);
+          gain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(time);
+          osc.stop(time + 0.1);
+        });
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    // --- WebGL Core Variables ---
+    var c, gl;
+    var v_shader, f_shader, shaderprogram;
+    var u_offset_loc, u_color_loc, u_pointsize_loc, u_rotation_loc, u_drawmode_loc;
+    var a_position_loc;
+
+    var objects = [];
+    var lasers = [];
+    var particles = [];
+    var powerups = [];
+    var backgroundStars = [];
+
+    // --- Airplane Physics & Game State ---
+    var step_x = 0.0;
+    var step_y = 0.0;
+    var target_step_x = 0.0;
+    var target_step_y = 0.0;
+    var plane_rotation = 0.0;
+    var obstacle_factor = 0.012;
+    var current_score = 0;
+    var high_score = parseInt(localStorage.getItem('cyberplane_highscore') || '0', 10);
+    var shields = 3;
+    var current_level = 1;
+    var is_game_over = false;
+    var is_paused = false;
+    var framecounter = 0;
+    var lastLaserTime = 0;
+
+    // Keys pressed state for smooth multi-key responsiveness
+    var keys = {};
+
+    window.onload = function () {
+      initWebGL();
+      initAudioToggle();
+      resetGame();
+      requestAnimationFrame(animate);
+    };
+
+    function initAudioToggle() {
+      const toggle = document.getElementById('sound-toggle');
+      toggle.addEventListener('click', () => {
+        sound.init();
+        sound.muted = !sound.muted;
+        toggle.innerHTML = sound.muted ? '<span>🔇</span> AUDIO: OFF' : '<span>🔊</span> AUDIO: ON';
+      });
+    }
+
+    function initWebGL() {
+      c = document.getElementById('c');
+      c.width = window.innerWidth;
+      c.height = window.innerHeight;
+
+      gl = c.getContext('webgl', { antialias: true, alpha: false });
+      if (!gl) {
+        alert('WebGL not supported on this browser!');
+        return;
+      }
+      gl.viewport(0, 0, c.width, c.height);
+
+      // Enable Alpha Blending for glowing particles and transparent shields
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+      // Shaders compilation
+      v_shader = gl.createShader(gl.VERTEX_SHADER);
+      f_shader = gl.createShader(gl.FRAGMENT_SHADER);
+
+      gl.shaderSource(v_shader, document.getElementById('vertexshader').innerText);
+      gl.compileShader(v_shader);
+      if (!gl.getShaderParameter(v_shader, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(v_shader));
+      }
+
+      gl.shaderSource(f_shader, document.getElementById('fragmentshader').innerText);
+      gl.compileShader(f_shader);
+      if (!gl.getShaderParameter(f_shader, gl.COMPILE_STATUS)) {
+        console.error(gl.getShaderInfoLog(f_shader));
+      }
+
+      shaderprogram = gl.createProgram();
+      gl.attachShader(shaderprogram, v_shader);
+      gl.attachShader(shaderprogram, f_shader);
+      gl.linkProgram(shaderprogram);
+      gl.useProgram(shaderprogram);
+
+      // Uniform & Attribute Locations
+      a_position_loc = gl.getAttribLocation(shaderprogram, 'a_position');
+      u_offset_loc = gl.getUniformLocation(shaderprogram, 'u_offset');
+      u_color_loc = gl.getUniformLocation(shaderprogram, 'u_color');
+      u_pointsize_loc = gl.getUniformLocation(shaderprogram, 'u_pointsize');
+      u_rotation_loc = gl.getUniformLocation(shaderprogram, 'u_rotation');
+      u_drawmode_loc = gl.getUniformLocation(shaderprogram, 'u_drawmode');
+
+      // Create ambient background starfield
+      createStarfield();
+    }
+
+    function createStarfield() {
+      backgroundStars = [];
+      const count = 75;
+      for (let i = 0; i < count; i++) {
+        const x = Math.random() * 2.0 - 1.0;
+        const y = Math.random() * 2.0 - 1.0;
+        const speed = 0.001 + Math.random() * 0.003;
+        const size = 1.5 + Math.random() * 3.5;
+        const brightness = 0.3 + Math.random() * 0.7;
+        backgroundStars.push({ x, y, speed, size, brightness });
+      }
+    }
+
+    function resetGame() {
+      is_game_over = false;
+      is_paused = false;
+      shields = 3;
+      current_score = 0;
+      obstacle_factor = 0.012;
+      current_level = 1;
+      framecounter = 0;
+      step_x = 0.0;
+      step_y = 0.0;
+      plane_rotation = 0.0;
+
+      updateShieldUI();
+      document.getElementById('scoreboard').innerText = '0';
+      document.getElementById('level-display').innerText = '01';
+      document.getElementById('gameover-screen').classList.remove('active');
+
+      // Populate WebGL objects
+      objects = [];
+      lasers = [];
+      particles = [];
+      powerups = [];
+
+      // Add Airplane
+      objects.push(createAirplane());
+
+      // Add Initial Obstacles (12 glowing asteroids)
+      for (let i = 0; i < 12; i++) {
+        objects.push(createObstacle());
+      }
+    }
+
+    // --- Object Creators ---
+
+    function createAirplane() {
+      // 6 Vertices forming the futuristic delta-wing jet
+      const vertices = new Float32Array([
+        -0.05,  0.05, 0.0,  // V0 (top tail)
+        -0.05, -0.09, 0.0,  // V1 (bottom tail)
+         0.10, -0.04, 0.0,  // V2 (wing body)
+         0.00,  0.00, 0.0,  // V3 (cockpit canopy)
+         0.10,  0.00, 0.0,  // V4 (nose base)
+         0.16, -0.04, 0.0   // V5 (sharp nose tip)
+      ]);
+
+      const indices = new Uint8Array([
+        0, 1, 2,
+        2, 3, 4,
+        2, 4, 5
+      ]);
+
+      const v_buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, v_buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+      const i_buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, i_buffer);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+      const offset = [-0.6, 0.0, 0.0];
+      const color = [0.0, 0.94, 1.0, 1.0]; // Neon Cyan
+
+      return {
+        type: 'airplane',
+        v_buffer: v_buffer,
+        i_buffer: i_buffer,
+        vertices: vertices,
+        indices: indices,
+        offset: offset,
+        color: color,
+        drawtype: gl.TRIANGLES,
+        pointsize: 1.0,
+        rotation: 0.0,
+        drawmode: 0
+      };
+    }
+
+    function createObstacle() {
+      const vertices = new Float32Array([0.0, 0.0, 0.0]);
+      const v_buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, v_buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+      // Random position spread along the right
+      const offset = [
+        1.0 + Math.random() * 1.5,
+        (Math.random() * 1.8) - 0.9,
+        0.0
+      ];
+
+      // Radiant energy colors (amber, crimson, magenta)
+      const colors = [
+        [1.0, 0.25, 0.25, 1.0], // Crimson
+        [1.0, 0.60, 0.10, 1.0], // Amber
+        [0.9, 0.20, 0.85, 1.0]  // Purple Plasma
+      ];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const pointsize = 14.0 + Math.random() * 10.0;
+      const speedMult = 0.85 + Math.random() * 0.45;
+
+      return {
+        type: 'obstacle',
+        v_buffer: v_buffer,
+        i_buffer: null,
+        vertices: vertices,
+        offset: offset,
+        color: color,
+        drawtype: gl.POINTS,
+        pointsize: pointsize,
+        speedMult: speedMult,
+        rotation: 0.0,
+        drawmode: 1 // Glowing particle
+      };
+    }
+
+    function fireLaser(originX, originY) {
+      sound.init();
+      sound.playLaser();
+
+      const vertices = new Float32Array([
+        -0.03, 0.0, 0.0,
+         0.03, 0.0, 0.0
+      ]);
+      const v_buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, v_buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+      lasers.push({
+        v_buffer: v_buffer,
+        vertices: vertices,
+        offset: [originX + 0.16, originY - 0.04, 0.0],
+        color: [0.0, 1.0, 0.7, 1.0], // Neon Green-Cyan Laser
+        drawtype: gl.LINES,
+        pointsize: 4.0,
+        drawmode: 0
+      });
+    }
+
+    function spawnExplosion(x, y, baseColor) {
+      sound.playExplosion();
+      const sparkCount = 18;
+      for (let i = 0; i < sparkCount; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 0.008 + Math.random() * 0.022;
+        particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 1.0,
+          decay: 0.025 + Math.random() * 0.03,
+          size: 6.0 + Math.random() * 10.0,
+          color: [baseColor[0], baseColor[1], baseColor[2], 1.0]
+        });
+      }
+    }
+
+    function spawnJetThruster(x, y) {
+      particles.push({
+        x: x - 0.06 + (Math.random() * 0.01 - 0.005),
+        y: y - 0.02 + (Math.random() * 0.01 - 0.005),
+        vx: -0.015 - Math.random() * 0.01,
+        vy: (Math.random() * 0.006 - 0.003),
+        life: 0.9,
+        decay: 0.06,
+        size: 8.0 + Math.random() * 6.0,
+        color: [0.0, 0.8, 1.0, 0.8]
+      });
+    }
+
+    function spawnPowerup() {
+      powerups.push({
+        x: 1.2,
+        y: (Math.random() * 1.6) - 0.8,
+        speed: 0.008,
+        size: 22.0,
+        color: [1.0, 0.9, 0.2, 1.0] // Golden Star
+      });
+    }
+
+    // --- Collision & Bounding Box Helpers ---
+
+    function calculateBoundingBox(vertices, offset) {
+      let minx = 1000, maxx = -1000;
+      let miny = 1000, maxy = -1000;
+      let minz = 1000, maxz = -1000;
+
+      for (let v = 0; v < vertices.length; v += 3) {
+        const cx = vertices[v] + offset[0];
+        const cy = vertices[v + 1] + offset[1];
+        const cz = vertices[v + 2] + offset[2];
+
+        minx = Math.min(minx, cx);
+        miny = Math.min(miny, cy);
+        minz = Math.min(minz, cz);
+
+        maxx = Math.max(maxx, cx);
+        maxy = Math.max(maxy, cy);
+        maxz = Math.max(maxz, cz);
+      }
+      return [minx, maxx, miny, maxy, minz, maxz];
+    }
+
+    function detectCollision(bbox, point) {
+      // Small margin around the point for fair hitbox detection
+      const radius = 0.035;
+      return (
+        point[0] + radius >= bbox[0] && point[0] - radius <= bbox[1] &&
+        point[1] + radius >= bbox[2] && point[1] - radius <= bbox[3] &&
+        point[2] >= bbox[4] && point[2] <= bbox[5]
+      );
+    }
+
+    function triggerScreenShake() {
+      const container = document.getElementById('game-container');
+      container.classList.remove('shake');
+      void container.offsetWidth; // Force reflow
+      container.classList.add('shake');
+      setTimeout(() => container.classList.remove('shake'), 260);
+    }
+
+    function updateShieldUI() {
+      for (let i = 1; i <= 3; i++) {
+        const pip = document.getElementById('pip-' + i);
+        if (i <= shields) {
+          pip.classList.remove('lost');
+        } else {
+          pip.classList.add('lost');
+        }
+      }
+    }
+
+    function onDamage(planeOffset) {
+      shields--;
+      sound.playHit();
+      triggerScreenShake();
+      updateShieldUI();
+
+      spawnExplosion(planeOffset[0], planeOffset[1], [1.0, 0.3, 0.3]);
+
+      if (shields <= 0) {
+        gameOver();
+      }
+    }
+
+    function gameOver() {
+      is_game_over = true;
+      sound.playExplosion();
+
+      if (current_score > high_score) {
+        high_score = current_score;
+        localStorage.setItem('cyberplane_highscore', high_score);
+      }
+
+      document.getElementById('final-score').innerText = current_score;
+      document.getElementById('best-score').innerText = high_score;
+      document.getElementById('gameover-screen').classList.add('active');
+    }
+
+    // --- Input Handling ---
+
+    window.addEventListener('keydown', (e) => {
+      sound.init();
+      keys[e.code] = true;
+
+      // Laser Cannon (Space)
+      if (e.code === 'Space' && !is_game_over && !is_paused) {
+        const now = Date.now();
+        if (now - lastLaserTime > 160) {
+          const plane = objects[0];
+          if (plane) {
+            fireLaser(plane.offset[0], plane.offset[1]);
+            lastLaserTime = now;
+          }
+        }
+        e.preventDefault();
+      }
+
+      // Pause toggle (P)
+      if (e.code === 'KeyP' && !is_game_over) {
+        is_paused = !is_paused;
+      }
+
+      // Restart (R)
+      if (e.code === 'KeyR' && is_game_over) {
+        resetGame();
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      keys[e.code] = false;
+    });
+
+    document.getElementById('restart-btn').addEventListener('click', () => {
+      resetGame();
+    });
+
+    window.addEventListener('resize', () => {
+      if (!c || !gl) return;
+      c.width = window.innerWidth;
+      c.height = window.innerHeight;
+      gl.viewport(0, 0, c.width, c.height);
+    });
+
+    // --- Main Game & Render Loop ---
+
+    function animate() {
+      if (!is_paused && !is_game_over) {
+        updateGameLogic();
+      }
+
+      renderWebGL();
+
+      requestAnimationFrame(animate);
+    }
+
+    function updateGameLogic() {
+      framecounter++;
+
+      // Handle flight movement input (Arrow keys or WASD)
+      target_step_x = 0.0;
+      target_step_y = 0.0;
+
+      if (keys['ArrowUp'] || keys['KeyW']) target_step_y += 0.022;
+      if (keys['ArrowDown'] || keys['KeyS']) target_step_y -= 0.022;
+      if (keys['ArrowLeft'] || keys['KeyA']) target_step_x -= 0.022;
+      if (keys['ArrowRight'] || keys['KeyD']) target_step_x += 0.022;
+
+      // Smooth flight inertia interpolation
+      step_x += (target_step_x - step_x) * 0.25;
+      step_y += (target_step_y - step_y) * 0.25;
+
+      // Banking angle rotation based on vertical movement
+      plane_rotation = step_y * 12.0;
+
+      // Passive score accumulation
+      if (framecounter % 30 === 0) {
+        current_score += 10;
+        document.getElementById('scoreboard').innerText = current_score;
+      }
+
+      // Wave advancement & speed progression roughly every 20 seconds
+      if (framecounter % 600 === 0) {
+        current_level++;
+        obstacle_factor += 0.003;
+        document.getElementById('level-display').innerText = current_level < 10 ? '0' + current_level : current_level;
+
+        // Spawn a lucky energy star powerup
+        spawnPowerup();
+      }
+
+      const plane = objects[0];
+      if (plane) {
+        plane.offset[0] += step_x;
+        plane.offset[1] += step_y;
+        plane.rotation = plane_rotation;
+
+        // Keep inside screen bounds [-0.95, 0.95]
+        plane.offset[0] = Math.max(-0.95, Math.min(0.95, plane.offset[0]));
+        plane.offset[1] = Math.max(-0.90, Math.min(0.90, plane.offset[1]));
+
+        // Spawn jet thruster exhaust particles
+        spawnJetThruster(plane.offset[0], plane.offset[1]);
+      }
+
+      const bbox_plane = plane ? calculateBoundingBox(plane.vertices, plane.offset) : null;
+
+      // Update Obstacles
+      for (let o = 1; o < objects.length; o++) {
+        const obs = objects[o];
+        obs.offset[0] -= obstacle_factor * (obs.speedMult || 1.0);
+
+        // Reset if drifted past left screen edge
+        if (obs.offset[0] <= -1.2) {
+          obs.offset[0] = 1.2 + Math.random() * 0.4;
+          obs.offset[1] = (Math.random() * 1.8) - 0.9;
+        }
+
+        // Collision with airplane
+        if (bbox_plane && detectCollision(bbox_plane, obs.offset)) {
+          onDamage(plane.offset);
+          obs.offset[0] = 1.3 + Math.random() * 0.5;
+          obs.offset[1] = (Math.random() * 1.8) - 0.9;
+        }
+
+        // Collision with Lasers
+        for (let l = lasers.length - 1; l >= 0; l--) {
+          const laser = lasers[l];
+          const dist = Math.hypot(laser.offset[0] - obs.offset[0], laser.offset[1] - obs.offset[1]);
+          if (dist < 0.075) {
+            spawnExplosion(obs.offset[0], obs.offset[1], obs.color);
+            obs.offset[0] = 1.3 + Math.random() * 0.5;
+            obs.offset[1] = (Math.random() * 1.8) - 0.9;
+
+            // Remove laser
+            lasers.splice(l, 1);
+
+            // Award points for accurate shooting
+            current_score += 250;
+            document.getElementById('scoreboard').innerText = current_score;
+            break;
+          }
+        }
+      }
+
+      // Update Lasers
+      for (let l = lasers.length - 1; l >= 0; l--) {
+        lasers[l].offset[0] += 0.045;
+        if (lasers[l].offset[0] > 1.2) {
+          lasers.splice(l, 1);
+        }
+      }
+
+      // Update Particles
+      for (let p = particles.length - 1; p >= 0; p--) {
+        const pt = particles[p];
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.life -= pt.decay;
+        if (pt.life <= 0) {
+          particles.splice(p, 1);
+        }
+      }
+
+      // Update Powerups
+      for (let pw = powerups.length - 1; pw >= 0; pw--) {
+        const star = powerups[pw];
+        star.x -= star.speed;
+
+        // Check airplane collision with powerup star
+        if (bbox_plane && detectCollision(bbox_plane, [star.x, star.y, 0.0])) {
+          sound.playPowerup();
+          if (shields < 3) {
+            shields++;
+            updateShieldUI();
+          }
+          current_score += 500;
+          document.getElementById('scoreboard').innerText = current_score;
+          spawnExplosion(star.x, star.y, [1.0, 0.9, 0.2]);
+          powerups.splice(pw, 1);
+          continue;
+        }
+
+        if (star.x < -1.2) {
+          powerups.splice(pw, 1);
+        }
+      }
+
+      // Update Background Starfield
+      for (let s = 0; s < backgroundStars.length; s++) {
+        const star = backgroundStars[s];
+        star.x -= star.speed;
+        if (star.x < -1.1) {
+          star.x = 1.1;
+          star.y = Math.random() * 2.0 - 1.0;
+        }
+      }
+    }
+
+    function renderWebGL() {
+      gl.clearColor(0.015, 0.03, 0.08, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      // 1. Draw Background Stars
+      renderBackgroundStars();
+
+      // 2. Draw Lasers
+      for (let l = 0; l < lasers.length; l++) {
+        drawObject(lasers[l]);
+      }
+
+      // 3. Draw Main Game Objects (Airplane & Obstacles)
+      for (let o = 0; o < objects.length; o++) {
+        drawObject(objects[o]);
+      }
+
+      // 4. Draw Collectible Powerup Stars
+      renderPowerups();
+
+      // 5. Draw Particles (Jet exhaust & explosion sparks)
+      renderParticles();
+    }
+
+    function drawObject(obj) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, obj.v_buffer);
+      gl.vertexAttribPointer(a_position_loc, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(a_position_loc);
+
+      gl.uniform3fv(u_offset_loc, obj.offset);
+      gl.uniform4fv(u_color_loc, new Float32Array(obj.color));
+      gl.uniform1f(u_pointsize_loc, obj.pointsize || 1.0);
+      gl.uniform1f(u_rotation_loc, obj.rotation || 0.0);
+      gl.uniform1i(u_drawmode_loc, obj.drawmode || 0);
+
+      if (obj.drawtype === gl.TRIANGLES) {
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, obj.i_buffer);
+        gl.drawElements(gl.TRIANGLES, obj.indices.length, gl.UNSIGNED_BYTE, 0);
+      } else if (obj.drawtype === gl.LINES) {
+        gl.drawArrays(gl.LINES, 0, 2);
+      } else {
+        gl.drawArrays(obj.drawtype, 0, obj.vertices.length / 3);
+      }
+    }
+
+    // Dynamic buffer rendering for batch stars/particles
+    let dynamicBuffer = null;
+    function getDynamicBuffer() {
+      if (!dynamicBuffer) {
+        dynamicBuffer = gl.createBuffer();
+      }
+      return dynamicBuffer;
+    }
+
+    function renderBackgroundStars() {
+      const buffer = getDynamicBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.enableVertexAttribArray(a_position_loc);
+      gl.vertexAttribPointer(a_position_loc, 3, gl.FLOAT, false, 0, 0);
+
+      gl.uniform3fv(u_offset_loc, [0.0, 0.0, 0.0]);
+      gl.uniform1f(u_rotation_loc, 0.0);
+      gl.uniform1i(u_drawmode_loc, 1);
+
+      for (let i = 0; i < backgroundStars.length; i++) {
+        const s = backgroundStars[i];
+        const v = new Float32Array([s.x, s.y, 0.0]);
+        gl.bufferData(gl.ARRAY_BUFFER, v, gl.STREAM_DRAW);
+        gl.uniform4fv(u_color_loc, new Float32Array([0.8, 0.9, 1.0, s.brightness]));
+        gl.uniform1f(u_pointsize_loc, s.size);
+        gl.drawArrays(gl.POINTS, 0, 1);
+      }
+    }
+
+    function renderPowerups() {
+      const buffer = getDynamicBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.enableVertexAttribArray(a_position_loc);
+      gl.vertexAttribPointer(a_position_loc, 3, gl.FLOAT, false, 0, 0);
+
+      gl.uniform3fv(u_offset_loc, [0.0, 0.0, 0.0]);
+      gl.uniform1f(u_rotation_loc, 0.0);
+      gl.uniform1i(u_drawmode_loc, 2); // Star drawmode
+
+      for (let i = 0; i < powerups.length; i++) {
+        const pw = powerups[i];
+        const v = new Float32Array([pw.x, pw.y, 0.0]);
+        gl.bufferData(gl.ARRAY_BUFFER, v, gl.STREAM_DRAW);
+        gl.uniform4fv(u_color_loc, new Float32Array(pw.color));
+        gl.uniform1f(u_pointsize_loc, pw.size + Math.sin(framecounter * 0.1) * 4.0);
+        gl.drawArrays(gl.POINTS, 0, 1);
+      }
+    }
+
+    function renderParticles() {
+      const buffer = getDynamicBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.enableVertexAttribArray(a_position_loc);
+      gl.vertexAttribPointer(a_position_loc, 3, gl.FLOAT, false, 0, 0);
+
+      gl.uniform3fv(u_offset_loc, [0.0, 0.0, 0.0]);
+      gl.uniform1f(u_rotation_loc, 0.0);
+      gl.uniform1i(u_drawmode_loc, 1); // Soft particle glow
+
+      for (let i = 0; i < particles.length; i++) {
+        const pt = particles[i];
+        const v = new Float32Array([pt.x, pt.y, 0.0]);
+        gl.bufferData(gl.ARRAY_BUFFER, v, gl.STREAM_DRAW);
+        const col = [pt.color[0], pt.color[1], pt.color[2], pt.color[3] * pt.life];
+        gl.uniform4fv(u_color_loc, new Float32Array(col));
+        gl.uniform1f(u_pointsize_loc, pt.size * pt.life);
+        gl.drawArrays(gl.POINTS, 0, 1);
+      }
+    }
+  </script>
+</body>
+
+</html>
